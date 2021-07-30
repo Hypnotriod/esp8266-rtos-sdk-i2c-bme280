@@ -69,25 +69,43 @@ signed long int t_fine;
 signed long int temp_act;
 unsigned long int press_act, hum_act;
 
-/*
-int ret;
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, MPU6050_SENSOR_ADDR << 1 | I2C_MASTER_WRITE , ACK_CHECK_EN);
-	i2c_master_write_byte(cmd, reg_address, ACK_CHECK_EN);
-	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-*/
-
-i2c_cmd_handle_t prepare_read(uint8_t readReg)
+i2c_cmd_handle_t bme280_prepare_write(uint8_t write_reg)
 {
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, BME280_W, true);
-	i2c_master_write_byte(cmd, readReg, true);
+	return cmd;
+}
+
+i2c_cmd_handle_t bme280_prepare_read(uint8_t read_reg)
+{
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, BME280_W, true);
+	i2c_master_write_byte(cmd, read_reg, true);
 	i2c_master_write_byte(cmd, BME280_R, true);
 	return cmd;
+}
+
+bool bme280_write_data(uint8_t write_reg, uint8_t data)
+{
+	esp_err_t err;
+	i2c_cmd_handle_t cmd = bme280_prepare_write(BME280_CHIP_ID_REG);
+	i2c_master_write_byte(cmd, write_reg, true);
+	i2c_master_write_byte(cmd, data, true);
+	i2c_master_stop(cmd);
+	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+
+	if (err != ESP_OK)
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_write_data: (%02x) error!\r\n", data);
+#endif
+		return false;
+	}
+
+	return true;
 }
 
 static esp_err_t i2c_master_init()
@@ -105,6 +123,18 @@ static esp_err_t i2c_master_init()
 	return ESP_OK;
 }
 
+void bme280_write_config_registers(void)
+{
+	uint8_t ctrl_meas_reg = (osrs_t << 5) | (osrs_p << 2) | bme280_operation_mode;
+	uint8_t ctrl_hum_reg = osrs_h;
+
+	uint8_t config_reg = (t_sb << 5) | (filter << 2) | spi3w_en;
+
+	bme280_write_data(BME280_REG_CTRL_HUM, ctrl_hum_reg);
+	bme280_write_data(BME280_REG_CTRL_MEAS, ctrl_meas_reg);
+	bme280_write_data(BME280_REG_CONFIG, config_reg);
+}
+
 bool bme280_init(uint8_t operation_mode)
 {
 	i2c_master_init();
@@ -115,7 +145,7 @@ bool bme280_init(uint8_t operation_mode)
 	}
 	bme280_operation_mode = operation_mode;
 
-	// BME280_writeConfigRegisters();
+	bme280_write_config_registers();
 
 	// BME280_readCalibrationRegisters();
 
@@ -173,7 +203,7 @@ bool bme280_verify_chip_id(void)
 {
 	esp_err_t err;
 	uint8_t version;
-	i2c_cmd_handle_t cmd = prepare_read(BME280_CHIP_ID_REG);
+	i2c_cmd_handle_t cmd = bme280_prepare_read(BME280_CHIP_ID_REG);
 	i2c_master_read_byte(cmd, &version, false);
 	i2c_master_stop(cmd);
 	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
