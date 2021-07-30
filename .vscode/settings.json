@@ -1,0 +1,18 @@
+{
+    "terminal.integrated.profiles.windows": {
+        "msys32": {
+            "path": "C:/msys32/usr/bin/bash.exe",
+            "args": [
+                "--login",
+                "-i",
+            ]
+        }
+    },
+    "diffEditor.ignoreTrimWhitespace": false,
+    "files.associations": {
+        "freertos.h": "c",
+        "sdkconfig.h": "c",
+        "i2c_bme280.h": "c",
+        "gpio_register.h": "c"
+    }
+}

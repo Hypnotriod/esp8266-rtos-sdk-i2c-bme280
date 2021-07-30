@@ -30,10 +30,6 @@ THE SOFTWARE.
 #ifndef __I2C_BME280_H
 #define	__I2C_BME280_H
 
-#include "c_types.h"
-#include "ets_sys.h"
-#include "osapi.h"
-
 #define BME280_W					0xEC
 #define BME280_R					0xED
 #define BME280_CHIP_ID_REG			0xD0
@@ -48,31 +44,27 @@ THE SOFTWARE.
 
 //#define BME280_DEBUG 1 //uncomment for debugging messages
 
-bool BME280_Init(uint8_t operationMode);
-bool ICACHE_FLASH_ATTR BME280_startI2cWrite(void);
-bool ICACHE_FLASH_ATTR BME280_sendI2cWriteData(uint8_t writeReg, uint8_t regData);
-bool ICACHE_FLASH_ATTR BME280_sendI2cRead(uint8_t readReg);
-bool ICACHE_FLASH_ATTR BME280_sendI2cReadSensorData();
-bool BME280_verifyChipId(void);
-void BME280_writeConfigRegisters(void);
-void BME280_readCalibrationRegisters(void);
+bool bme280_init(uint8_t operation_mode);
+bool bme280_verify_chip_id(void);
+void bme280_write_config_registers(void);
+void bme280_readCalibrationRegisters(void);
 
-signed long int BME280_calibration_T(signed long int adc_T);
-unsigned long int BME280_calibration_P(signed long int adc_P);
-unsigned long int BME280_calibration_H(signed long int adc_H);
+signed long int bme280_calibration_T(signed long int adc_T);
+unsigned long int bme280_calibration_P(signed long int adc_P);
+unsigned long int bme280_calibration_H(signed long int adc_H);
 
-void BME280_readSensorData(void);
+void bme280_readSensorData(void);
 
-unsigned long int BME280_GetTemperatureRaw(void);
-unsigned long int BME280_GetPressureRaw(void);
-unsigned long int BME280_GetHumidityRaw(void);
+unsigned long int bme280_getTemperatureRaw(void);
+unsigned long int bme280_getPressureRaw(void);
+unsigned long int bme280_getHumidityRaw(void);
 
-signed long int BME280_GetTemperature(void);
-unsigned long int BME280_GetPressure(void);
-unsigned long int BME280_GetHumidity(void);
+signed long int bme280_getTemperature(void);
+unsigned long int bme280_getPressure(void);
+unsigned long int bme280_GetHumidity(void);
 
-signed long int BME280_calibration_Temp(signed long int adc_T);
-unsigned long int BME280_calibration_Press(signed long int adc_P);
-unsigned long int BME280_calibration_Hum(signed long int adc_H);
+signed long int bme280_calibration_Temp(signed long int adc_T);
+unsigned long int bme280_calibration_Press(signed long int adc_P);
+unsigned long int bme280_calibration_Hum(signed long int adc_H);
 
 #endif
