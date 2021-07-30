@@ -32,9 +32,6 @@ THE SOFTWARE.
 
 #include "i2c_bme280.h"
 
-#define I2C_MASTER_SCL_IO 2	 /*!< gpio number for I2C master clock */
-#define I2C_MASTER_SDA_IO 14 /*!< gpio number for I2C master data  */
-
 uint16_t calib_dig_T1;
 int16_t calib_dig_T2;
 int16_t calib_dig_T3;
@@ -54,13 +51,13 @@ int16_t calib_dig_H4;
 int16_t calib_dig_H5;
 int8_t calib_dig_H6;
 
-uint8_t osrs_t = 1; //Temperature oversampling x 1
-uint8_t osrs_p = 1; //Pressure oversampling x 1
-uint8_t osrs_h = 1; //Humidity oversampling x 1
+uint8_t osrs_t = 1; // Temperature oversampling x 1
+uint8_t osrs_p = 1; // Pressure oversampling x 1
+uint8_t osrs_h = 1; // Humidity oversampling x 1
 
-uint8_t t_sb = 4;	  //Tstandby, 5=1000ms, 4=500ms
-uint8_t filter = 0;	  //Filter off
-uint8_t spi3w_en = 0; //3-wire SPI Disable
+uint8_t t_sb = 4;	  // Tstandby, 5=1000ms, 4=500ms
+uint8_t filter = 0;	  // Filter off
+uint8_t spi3w_en = 0; // 3-wire SPI Disable
 
 uint8_t bme280_operation_mode = BME280_MODE_NORMAL;
 
@@ -69,7 +66,7 @@ signed long int t_fine;
 signed long int temp_act;
 unsigned long int press_act, hum_act;
 
-i2c_cmd_handle_t bme280_prepare_write(uint8_t write_reg)
+i2c_cmd_handle_t bme280_prepare_write()
 {
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
@@ -90,7 +87,7 @@ i2c_cmd_handle_t bme280_prepare_read(uint8_t read_reg)
 bool bme280_write_data(uint8_t write_reg, uint8_t data)
 {
 	esp_err_t err;
-	i2c_cmd_handle_t cmd = bme280_prepare_write(BME280_CHIP_ID_REG);
+	i2c_cmd_handle_t cmd = bme280_prepare_write();
 	i2c_master_write_byte(cmd, write_reg, true);
 	i2c_master_write_byte(cmd, data, true);
 	i2c_master_stop(cmd);
@@ -117,9 +114,9 @@ static esp_err_t i2c_master_init()
 	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.scl_io_num = I2C_MASTER_SCL_IO;
 	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.clk_stretch_tick = 300; // 300 ticks, Clock stretch is about 210us, you can make changes according to the actual situation.
-	ESP_ERROR_CHECK(i2c_driver_install(i2c_master_port, conf.mode));
-	ESP_ERROR_CHECK(i2c_param_config(i2c_master_port, &conf));
+	conf.clk_stretch_tick = 300;
+	i2c_driver_install(i2c_master_port, conf.mode);
+	i2c_param_config(i2c_master_port, &conf);
 	return ESP_OK;
 }
 
@@ -135,70 +132,6 @@ void bme280_write_config_registers(void)
 	bme280_write_data(BME280_REG_CONFIG, config_reg);
 }
 
-bool bme280_init(uint8_t operation_mode)
-{
-	i2c_master_init();
-
-	if (!bme280_verify_chip_id())
-	{
-		return false;
-	}
-	bme280_operation_mode = operation_mode;
-
-	bme280_write_config_registers();
-
-	// BME280_readCalibrationRegisters();
-
-#ifdef BME280_DEBUG
-	printf("bme280_init: success\r\n");
-#endif
-
-	return true;
-}
-/*
-bool  BME280_sendI2cWriteData(uint8_t writeReg, uint8_t regData)
-{
-	if (!BME280_startI2cWrite())
-	{
-		return 0;
-	}
-	i2c_writeByte(writeReg);
-	if (!i2c_check_ack())
-	{
-#ifdef BME280_DEBUG
-		ets_uart_printf("BME280_sendI2cWriteData: i2c_writeByte(%X) slave not ack..\r\n", writeReg);
-#endif
-		i2c_stop();
-		return 0;
-	}
-	i2c_writeByte(regData);
-	if (!i2c_check_ack())
-	{
-#ifdef BME280_DEBUG
-		ets_uart_printf("BME280_sendI2cWriteData: i2c_writeByte(%X) slave not ack..\r\n", regData);
-#endif
-		i2c_stop();
-		return 0;
-	}
-	i2c_stop();
-	return 1;
-}
-
-bool  BME280_startI2cWrite()
-{
-	i2c_start();
-	i2c_writeByte(BME280_W);
-	if (!i2c_check_ack())
-	{
-#ifdef BME280_DEBUG
-		ets_uart_printf("BME280_startI2cWrite: i2c_writeByte(BME280_W) slave not ack..\r\n");
-#endif
-		i2c_stop();
-		return 0;
-	}
-	return 1;
-}
-*/
 bool bme280_verify_chip_id(void)
 {
 	esp_err_t err;
@@ -227,322 +160,43 @@ bool bme280_verify_chip_id(void)
 
 	return true;
 }
-/*
-void  BME280_writeConfigRegisters(void)
-{
-	uint8_t ctrl_meas_reg = (osrs_t << 5) | (osrs_p << 2) | BME280_OperationMode;
-	uint8_t ctrl_hum_reg = osrs_h;
 
-	uint8_t config_reg = (t_sb << 5) | (filter << 2) | spi3w_en;
-
-	BME280_sendI2cWriteData(BME280_REG_CTRL_HUM, ctrl_hum_reg);
-	BME280_sendI2cWriteData(BME280_REG_CTRL_MEAS, ctrl_meas_reg);
-	BME280_sendI2cWriteData(BME280_REG_CONFIG, config_reg);
-}
-
-void  BME280_readCalibrationRegisters(void)
-{
-
-	uint8_t msb, lsb;
-
-	//////////////
-	// Read section 0x88
-	BME280_sendI2cRead(0x88);
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_T1 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_T1 = %u\r\n", lsb, msb, calib_dig_T1);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_T2 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_T2 = %d\r\n", lsb, msb, calib_dig_T2);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_T3 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_T3 = %d\r\n", lsb, msb, calib_dig_T3);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_P1 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_P1 = %u\r\n", lsb, msb, calib_dig_P1);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_P2 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_P2 = %d\r\n", lsb, msb, calib_dig_P2);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_P3 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_P3 = %d\r\n", lsb, msb, calib_dig_P3);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_P4 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_P4 = %d\r\n", lsb, msb, calib_dig_P4);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_P5 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_P5 = %d\r\n", lsb, msb, calib_dig_P5);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_P6 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_P6 = %d\r\n", lsb, msb, calib_dig_P6);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_P7 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_P7 = %d\r\n", lsb, msb, calib_dig_P7);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_P8 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_P8 = %d\r\n", lsb, msb, calib_dig_P8);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(0);
-	i2c_stop();
-
-	calib_dig_P9 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_P9 = %d\r\n", lsb, msb, calib_dig_P9);
-	//#endif
-
-	//////////////
-	// Read section 0xA1
-	BME280_sendI2cRead(0xA1);
-
-	msb = i2c_readByte();
-	i2c_send_ack(0); // STOP
-	i2c_stop();
-	calib_dig_H1 = msb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("msb: 0x%X = calib_dig_H1 = %d\r\n", msb, calib_dig_H1);
-	//#endif
-
-	//////////////
-	// Read section 0xE1
-	BME280_sendI2cRead(0xE1);
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_H2 = (msb << 8) | lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_H2 = %d\r\n", lsb, msb, calib_dig_H2);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_H3 = lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X = calib_dig_H3 = %d\r\n", lsb, calib_dig_H3);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_H4 = (lsb << 4) | (0x0f & msb);
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_H4 = %d\r\n", lsb, msb, calib_dig_H4);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	calib_dig_H5 = (lsb << 4) | ((msb >> 4) & 0x0F);
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X, msb: 0x%X = calib_dig_H5 = %d\r\n", lsb, msb, calib_dig_H5);
-	//#endif
-
-	lsb = i2c_readByte();
-	i2c_send_ack(0); // STOP
-	i2c_stop();
-
-	calib_dig_H6 = lsb;
-	//#ifdef BME280_DEBUG
-	//ets_uart_printf("lsb 0x%X = calib_dig_H6 = %d\r\n", lsb, calib_dig_H6);
-	//#endif
-}
-
-bool  BME280_sendI2cTriggerForcedRead()
-{
-
-	uint8_t ctrl_meas_reg = (osrs_t << 5) | (osrs_p << 2) | BME280_OperationMode;
-
-	BME280_sendI2cWriteData(BME280_REG_CTRL_MEAS, ctrl_meas_reg);
-
-	os_delay_us(10000); // wait 10ms for worst case max sensor read time
-
-	return 1;
-}
-bool  BME280_sendI2cReadSensorData()
-{
-
-	uint8 msb, lsb, xlsb;
-
-#ifdef BME280_DEBUG
-	ets_uart_printf("operation mode = %d\r\n", BME280_OperationMode);
-#endif
-
-	if (BME280_OperationMode == BME280_MODE_FORCED)
-	{
-		if (!BME280_sendI2cTriggerForcedRead())
-		{
-			return 0;
-		}
-	}
-
-	if (!BME280_sendI2cRead(0xF7))
-	{
-		return 0;
-	}
-
-	//0xF7 - pressure
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	xlsb = i2c_readByte();
-	i2c_send_ack(1);
-#ifdef BME280_DEBUG
-	ets_uart_printf("pres_raw 0: %X, pres_raw 1: %X, pres_raw 2: %X\r\n", msb, lsb, xlsb);
-#endif
-
-	pres_raw = (msb << 12) | (lsb << 4) | (xlsb >> 4);
-
-	//0xFA - temp
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-	xlsb = i2c_readByte();
-	i2c_send_ack(1);
-#ifdef BME280_DEBUG
-	ets_uart_printf("temp_raw 3: %X, temp_raw 4: %X, temp_raw 5: %X\r\n", msb, lsb, xlsb);
-#endif
-
-	temp_raw = (msb << 12) | (lsb << 4) | (xlsb >> 4);
-
-	//0xFD - humidity
-	msb = i2c_readByte();
-	i2c_send_ack(1);
-	lsb = i2c_readByte();
-	i2c_send_ack(1);
-#ifdef BME280_DEBUG
-	ets_uart_printf("hum_raw 6: %X, hum_raw 7: %X\r\n", msb, lsb);
-#endif
-
-	hum_raw = (msb << 8) | lsb;
-
-	i2c_stop();
-
-	return 1;
-}
-
-unsigned long int  BME280_GetTemperatureRaw()
-{
-	return temp_raw;
-}
-
-unsigned long int  BME280_GetPressureRaw()
-{
-	return pres_raw;
-}
-
-unsigned long int  BME280_GetHumidityRaw()
-{
-	return hum_raw;
-}
-
-void  BME280_readSensorData()
-{
-
-	BME280_sendI2cReadSensorData();
-
-	// test data:
-	//temp_raw = 529184;
-	//pres_raw = 282960;
-	//hum_raw = 28012;
-
-	temp_act = BME280_calibration_Temp(temp_raw);
-	press_act = BME280_calibration_Press(pres_raw);
-	hum_act = BME280_calibration_Hum(hum_raw);
-}
-
-signed long int  BME280_GetT_Fine()
+signed long int bme280_get_t_fine()
 {
 	return t_fine;
 }
 
-signed long int  BME280_GetTemperature()
+signed long int bme280_get_temperature()
 {
 	return temp_act;
 }
 
-unsigned long int  BME280_GetPressure()
+unsigned long int bme280_get_pressure()
 {
 	return press_act;
 }
 
-unsigned long int  BME280_GetHumidity()
+unsigned long int bme280_get_humidity()
 {
 	return hum_act;
 }
 
-signed long int BME280_calibration_Temp(signed long int adc_T)
+unsigned long int bme280_get_temperature_raw()
+{
+	return temp_raw;
+}
+
+unsigned long int bme280_get_tressure_raw()
+{
+	return pres_raw;
+}
+
+unsigned long int bme280_get_humidity_raw()
+{
+	return hum_raw;
+}
+
+signed long int bme280_calibration_temp(signed long int adc_T)
 {
 
 	signed long int var1, var2, T;
@@ -554,7 +208,7 @@ signed long int BME280_calibration_Temp(signed long int adc_T)
 	return T;
 }
 
-unsigned long int BME280_calibration_Press(signed long int adc_P)
+unsigned long int bme280_calibration_press(signed long int adc_P)
 {
 	signed long int var1, var2;
 	unsigned long int P;
@@ -583,7 +237,7 @@ unsigned long int BME280_calibration_Press(signed long int adc_P)
 	return P;
 }
 
-unsigned long int BME280_calibration_Hum(signed long int adc_H)
+unsigned long int bme280_calibration_hum(signed long int adc_H)
 {
 	signed long int v_x1;
 
@@ -603,4 +257,262 @@ unsigned long int BME280_calibration_Hum(signed long int adc_H)
 	v_x1 = (v_x1 > 419430400 ? 419430400 : v_x1);
 	return (unsigned long int)(v_x1 >> 12);
 }
-*/
+
+bool bme280_send_i2c_trigger_forced_read()
+{
+	uint8_t ctrl_meas_reg = (osrs_t << 5) | (osrs_p << 2) | bme280_operation_mode;
+
+	if (!bme280_write_data(BME280_REG_CTRL_MEAS, ctrl_meas_reg))
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_send_i2c_trigger_forced_read: error!\r\n");
+#endif
+		return false;
+	}
+
+	os_delay_us(10000); // wait 10ms for worst case max sensor read time
+
+	return true;
+}
+
+bool bme280_send_i2c_read_sensor_data()
+{
+	uint8_t data[8];
+	esp_err_t err;
+	i2c_cmd_handle_t cmd;
+
+#ifdef BME280_DEBUG
+	printf("bme280_send_i2c_read_sensor_data: operation mode = %d\r\n", bme280_operation_mode);
+#endif
+
+	if (bme280_operation_mode == BME280_MODE_FORCED)
+	{
+		if (!bme280_send_i2c_trigger_forced_read())
+		{
+			return false;
+		}
+	}
+
+	cmd = bme280_prepare_read(0xF7);
+	for (size_t i = 0; i < sizeof(data); i++)
+	{
+		i2c_master_read_byte(cmd, &data[i], true);
+	}
+	i2c_master_stop(cmd);
+	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+
+	if (err != ESP_OK)
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_send_i2c_read_sensor_data: section 0xF7 error!\r\n");
+#endif
+		return false;
+	}
+
+	// 0xF7 - pressure
+	pres_raw = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4);
+#ifdef BME280_DEBUG
+	printf("pres_raw 0: %X, pres_raw 1: %X, pres_raw 2: %X\r\n", data[0], data[1], data[2]);
+#endif
+
+	//0xFA - temp
+	temp_raw = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
+#ifdef BME280_DEBUG
+	printf("temp_raw 3: %X, temp_raw 4: %X, temp_raw 5: %X\r\n", data[3], data[4], data[5]);
+#endif
+
+	//0xFD - humidity
+	hum_raw = (data[6] << 8) | data[7];
+#ifdef BME280_DEBUG
+	printf("hum_raw 6: %X, hum_raw 7: %X\r\n", data[6], data[7]);
+#endif
+
+	return true;
+}
+
+void bme280_read_calibration_registers(void)
+{
+	uint8_t data[24];
+	esp_err_t err;
+	i2c_cmd_handle_t cmd;
+
+	//////////////
+	// Read section 0x88
+	cmd = bme280_prepare_read(0x88);
+	for (size_t i = 0; i < sizeof(data); i++)
+	{
+		i2c_master_read_byte(cmd, &data[i], true);
+	}
+	i2c_master_stop(cmd);
+	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+
+	if (err != ESP_OK)
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_read_calibration_registers: section 0x88 error!\r\n");
+#endif
+		return;
+	}
+
+	calib_dig_T1 = data[0] | (data[1] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_T1 = %u\r\n", data[0], data[1], calib_dig_T1);
+#endif
+
+	calib_dig_T2 = data[2] | (data[3] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_T2 = %d\r\n", data[2], data[3], calib_dig_T2);
+#endif
+
+	calib_dig_T3 = data[4] | (data[5] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_T3 = %d\r\n", data[4], data[5], calib_dig_T3);
+#endif
+
+	calib_dig_P1 = data[6] | (data[7] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_P1 = %u\r\n", data[6], data[7], calib_dig_P1);
+#endif
+
+	calib_dig_P2 = data[8] | (data[9] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_P2 = %d\r\n", data[8], data[9], calib_dig_P2);
+#endif
+
+	calib_dig_P3 = data[10] | (data[11] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_P3 = %d\r\n", data[10], data[11], calib_dig_P3);
+#endif
+
+	calib_dig_P4 = data[12] | (data[13] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_P4 = %d\r\n", data[12], data[13], calib_dig_P4);
+#endif
+
+	calib_dig_P5 = data[14] | (data[15] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_P5 = %d\r\n", data[14], data[15], calib_dig_P5);
+#endif
+
+	calib_dig_P6 = data[16] | (data[17] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_P6 = %d\r\n", data[16], data[17], calib_dig_P6);
+#endif
+
+	calib_dig_P7 = data[18] | (data[19] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_P7 = %d\r\n", data[18], data[19], calib_dig_P7);
+#endif
+
+	calib_dig_P8 = data[20] | (data[21] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_P8 = %d\r\n", data[20], data[21], calib_dig_P8);
+#endif
+
+	calib_dig_P9 = data[22] | (data[23] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_P9 = %d\r\n", data[22], data[23], calib_dig_P9);
+#endif
+
+	//////////////
+	// Read section 0xA1
+	cmd = bme280_prepare_read(0xA1);
+	i2c_master_read_byte(cmd, &data[0], false);
+	i2c_master_stop(cmd);
+	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+
+	if (err != ESP_OK)
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_read_calibration_registers: section 0xA1 error!\r\n");
+#endif
+		return;
+	}
+
+	calib_dig_H1 = data[0];
+#ifdef BME280_DEBUG
+	printf("msb: 0x%X = calib_dig_H1 = %d\r\n", data[0], calib_dig_H1);
+#endif
+
+	//////////////
+	// Read section 0xE1
+	cmd = bme280_prepare_read(0xE1);
+	for (size_t i = 0; i < 7; i++)
+	{
+		i2c_master_read_byte(cmd, &data[i], true);
+	}
+	i2c_master_stop(cmd);
+	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+
+	if (err != ESP_OK)
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_read_calibration_registers: section 0xE1 error!\r\n");
+#endif
+		return;
+	}
+
+	calib_dig_H2 = data[0] | (data[1] << 8);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_H2 = %d\r\n", data[0], data[1], calib_dig_H2);
+#endif
+
+	calib_dig_H3 = data[2];
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X = calib_dig_H3 = %d\r\n", data[2], calib_dig_H3);
+#endif
+
+	calib_dig_H4 = (data[3] << 4) | (0x0f & data[4]);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_H4 = %d\r\n", data[3], data[4], calib_dig_H4);
+#endif
+
+	calib_dig_H5 = (data[5] << 4) | ((data[4] >> 4) & 0x0F);
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X, msb: 0x%X = calib_dig_H5 = %d\r\n", data[5], data[4], calib_dig_H5);
+#endif
+
+	calib_dig_H6 = data[6];
+#ifdef BME280_DEBUG
+	printf("lsb 0x%X = calib_dig_H6 = %d\r\n", data[6], calib_dig_H6);
+#endif
+}
+
+bool bme280_init(uint8_t operation_mode)
+{
+	i2c_master_init();
+
+	if (!bme280_verify_chip_id())
+	{
+		return false;
+	}
+	bme280_operation_mode = operation_mode;
+
+	bme280_write_config_registers();
+
+	bme280_read_calibration_registers();
+
+#ifdef BME280_DEBUG
+	printf("bme280_init: success\r\n");
+#endif
+
+	return true;
+}
+
+bool bme280_read_sensor_data()
+{
+	if (!bme280_send_i2c_read_sensor_data())
+	{
+		return false;
+	}
+
+	temp_act = bme280_calibration_temp(temp_raw);
+	press_act = bme280_calibration_press(pres_raw);
+	hum_act = bme280_calibration_hum(hum_raw);
+
+	return true;
+}

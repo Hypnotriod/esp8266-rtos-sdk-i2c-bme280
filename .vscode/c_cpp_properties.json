@@ -5,7 +5,6 @@
             "includePath": [
                 "${workspaceFolder}/build/include",
                 "${workspaceFolder}/main",
-                "${workspaceFolder}/main/driver",
                 "${IDF_PATH}/components/esp8266/include",
                 "${IDF_PATH}/components/app_update/include",
                 "${IDF_PATH}/components/bootloader_support/include",
@@ -19,6 +18,7 @@
                 "${IDF_PATH}/components/freertos/port/esp8266/include",
                 "${IDF_PATH}/components/freertos/port/esp8266/include/freertos",
                 "${IDF_PATH}/components/freertos/include/freertos/private",
+                "${IDF_PATH}/components/freertos/include/freertos",
                 "${IDF_PATH}/components/heap/include",
                 "${IDF_PATH}/components/heap/port/esp8266/include",
                 "${IDF_PATH}/components/http_parser/include",

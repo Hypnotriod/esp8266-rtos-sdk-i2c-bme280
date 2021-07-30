@@ -28,43 +28,35 @@ THE SOFTWARE.
 */
 
 #ifndef __I2C_BME280_H
-#define	__I2C_BME280_H
+#define __I2C_BME280_H
 
-#define BME280_W					0xEC
-#define BME280_R					0xED
-#define BME280_CHIP_ID_REG			0xD0
-#define BME280_CHIP_ID				0x60
+#define I2C_MASTER_SCL_IO 2  /*!< gpio number for I2C master clock */
+#define I2C_MASTER_SDA_IO 14 /*!< gpio number for I2C master data  */
 
-#define BME280_REG_CTRL_HUM			0xF2
-#define BME280_REG_CTRL_MEAS		0xF4
-#define BME280_REG_CONFIG			0xF5
+#define BME280_W 0xEC
+#define BME280_R 0xED
+#define BME280_CHIP_ID_REG 0xD0
+#define BME280_CHIP_ID 0x60
 
-#define BME280_MODE_NORMAL			0x03 //reads sensors at set interval
-#define BME280_MODE_FORCED			0x01 //reads sensors once when you write this register
+#define BME280_REG_CTRL_HUM 0xF2
+#define BME280_REG_CTRL_MEAS 0xF4
+#define BME280_REG_CONFIG 0xF5
 
-//#define BME280_DEBUG 1 //uncomment for debugging messages
+#define BME280_MODE_NORMAL 0x03 // reads sensors at set interval
+#define BME280_MODE_FORCED 0x01 // reads sensors once when you write this register
+
+#define BME280_DEBUG 1 // uncomment for debugging messages
 
 bool bme280_init(uint8_t operation_mode);
 bool bme280_verify_chip_id(void);
-void bme280_write_config_registers(void);
-void bme280_readCalibrationRegisters(void);
+bool bme280_read_sensor_data();
 
-signed long int bme280_calibration_T(signed long int adc_T);
-unsigned long int bme280_calibration_P(signed long int adc_P);
-unsigned long int bme280_calibration_H(signed long int adc_H);
-
-void bme280_readSensorData(void);
-
-unsigned long int bme280_getTemperatureRaw(void);
-unsigned long int bme280_getPressureRaw(void);
-unsigned long int bme280_getHumidityRaw(void);
-
-signed long int bme280_getTemperature(void);
-unsigned long int bme280_getPressure(void);
-unsigned long int bme280_GetHumidity(void);
-
-signed long int bme280_calibration_Temp(signed long int adc_T);
-unsigned long int bme280_calibration_Press(signed long int adc_P);
-unsigned long int bme280_calibration_Hum(signed long int adc_H);
+signed long int bme280_get_t_fine();
+signed long int bme280_get_temperature();
+unsigned long int bme280_get_pressure();
+unsigned long int bme280_get_humidity();
+unsigned long int bme280_get_temperature_raw();
+unsigned long int bme280_get_tressure_raw();
+unsigned long int bme280_get_humidity_raw();
 
 #endif
