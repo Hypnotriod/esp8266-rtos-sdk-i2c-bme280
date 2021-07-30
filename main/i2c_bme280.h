@@ -48,15 +48,14 @@ THE SOFTWARE.
 #define BME280_DEBUG 1 // uncomment for debugging messages
 
 bool bme280_init(uint8_t operation_mode);
-bool bme280_verify_chip_id(void);
 bool bme280_read_sensor_data();
 
-signed long int bme280_get_t_fine();
-signed long int bme280_get_temperature();
-unsigned long int bme280_get_pressure();
-unsigned long int bme280_get_humidity();
-unsigned long int bme280_get_temperature_raw();
-unsigned long int bme280_get_tressure_raw();
-unsigned long int bme280_get_humidity_raw();
+int32_t bme280_get_t_fine();
+int32_t bme280_get_temperature();
+uint32_t bme280_get_pressure();
+uint32_t bme280_get_humidity();
+uint32_t bme280_get_temperature_raw();
+uint32_t bme280_get_tressure_raw();
+uint32_t bme280_get_humidity_raw();
 
 #endif

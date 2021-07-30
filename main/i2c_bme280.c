@@ -61,10 +61,10 @@ uint8_t spi3w_en = 0; // 3-wire SPI Disable
 
 uint8_t bme280_operation_mode = BME280_MODE_NORMAL;
 
-unsigned long int hum_raw, temp_raw, pres_raw;
-signed long int t_fine;
-signed long int temp_act;
-unsigned long int press_act, hum_act;
+uint32_t hum_raw, temp_raw, pres_raw;
+int32_t t_fine;
+int32_t temp_act;
+uint32_t press_act, hum_act;
 
 i2c_cmd_handle_t bme280_prepare_write()
 {
@@ -161,101 +161,101 @@ bool bme280_verify_chip_id(void)
 	return true;
 }
 
-signed long int bme280_get_t_fine()
+int32_t bme280_get_t_fine()
 {
 	return t_fine;
 }
 
-signed long int bme280_get_temperature()
+int32_t bme280_get_temperature()
 {
 	return temp_act;
 }
 
-unsigned long int bme280_get_pressure()
+uint32_t bme280_get_pressure()
 {
 	return press_act;
 }
 
-unsigned long int bme280_get_humidity()
+uint32_t bme280_get_humidity()
 {
 	return hum_act;
 }
 
-unsigned long int bme280_get_temperature_raw()
+uint32_t bme280_get_temperature_raw()
 {
 	return temp_raw;
 }
 
-unsigned long int bme280_get_tressure_raw()
+uint32_t bme280_get_tressure_raw()
 {
 	return pres_raw;
 }
 
-unsigned long int bme280_get_humidity_raw()
+uint32_t bme280_get_humidity_raw()
 {
 	return hum_raw;
 }
 
-signed long int bme280_calibration_temp(signed long int adc_T)
+int32_t bme280_calibration_temp(int32_t adc_T)
 {
 
-	signed long int var1, var2, T;
-	var1 = ((((adc_T >> 3) - ((signed long int)calib_dig_T1 << 1))) * ((signed long int)calib_dig_T2)) >> 11;
-	var2 = (((((adc_T >> 4) - ((signed long int)calib_dig_T1)) * ((adc_T >> 4) - ((signed long int)calib_dig_T1))) >> 12) * ((signed long int)calib_dig_T3)) >> 14;
+	int32_t var1, var2, T;
+	var1 = ((((adc_T >> 3) - ((int32_t)calib_dig_T1 << 1))) * ((int32_t)calib_dig_T2)) >> 11;
+	var2 = (((((adc_T >> 4) - ((int32_t)calib_dig_T1)) * ((adc_T >> 4) - ((int32_t)calib_dig_T1))) >> 12) * ((int32_t)calib_dig_T3)) >> 14;
 
 	t_fine = var1 + var2;
 	T = (t_fine * 5 + 128) >> 8;
 	return T;
 }
 
-unsigned long int bme280_calibration_press(signed long int adc_P)
+uint32_t bme280_calibration_press(int32_t adc_P)
 {
-	signed long int var1, var2;
-	unsigned long int P;
-	var1 = (((signed long int)t_fine) >> 1) - (signed long int)64000;
-	var2 = (((var1 >> 2) * (var1 >> 2)) >> 11) * ((signed long int)calib_dig_P6);
-	var2 = var2 + ((var1 * ((signed long int)calib_dig_P5)) << 1);
-	var2 = (var2 >> 2) + (((signed long int)calib_dig_P4) << 16);
-	var1 = (((calib_dig_P3 * (((var1 >> 2) * (var1 >> 2)) >> 13)) >> 3) + ((((signed long int)calib_dig_P2) * var1) >> 1)) >> 18;
-	var1 = ((((32768 + var1)) * ((signed long int)calib_dig_P1)) >> 15);
+	int32_t var1, var2;
+	uint32_t P;
+	var1 = (((int32_t)t_fine) >> 1) - (int32_t)64000;
+	var2 = (((var1 >> 2) * (var1 >> 2)) >> 11) * ((int32_t)calib_dig_P6);
+	var2 = var2 + ((var1 * ((int32_t)calib_dig_P5)) << 1);
+	var2 = (var2 >> 2) + (((int32_t)calib_dig_P4) << 16);
+	var1 = (((calib_dig_P3 * (((var1 >> 2) * (var1 >> 2)) >> 13)) >> 3) + ((((int32_t)calib_dig_P2) * var1) >> 1)) >> 18;
+	var1 = ((((32768 + var1)) * ((int32_t)calib_dig_P1)) >> 15);
 	if (var1 == 0)
 	{
 		return 0;
 	}
-	P = (((unsigned long int)(((signed long int)1048576) - adc_P) - (var2 >> 12))) * 3125;
+	P = (((uint32_t)(((int32_t)1048576) - adc_P) - (var2 >> 12))) * 3125;
 	if (P < 0x80000000)
 	{
-		P = (P << 1) / ((unsigned long int)var1);
+		P = (P << 1) / ((uint32_t)var1);
 	}
 	else
 	{
-		P = (P / (unsigned long int)var1) * 2;
+		P = (P / (uint32_t)var1) * 2;
 	}
-	var1 = (((signed long int)calib_dig_P9) * ((signed long int)(((P >> 3) * (P >> 3)) >> 13))) >> 12;
-	var2 = (((signed long int)(P >> 2)) * ((signed long int)calib_dig_P8)) >> 13;
-	P = (unsigned long int)((signed long int)P + ((var1 + var2 + calib_dig_P7) >> 4));
+	var1 = (((int32_t)calib_dig_P9) * ((int32_t)(((P >> 3) * (P >> 3)) >> 13))) >> 12;
+	var2 = (((int32_t)(P >> 2)) * ((int32_t)calib_dig_P8)) >> 13;
+	P = (uint32_t)((int32_t)P + ((var1 + var2 + calib_dig_P7) >> 4));
 	return P;
 }
 
-unsigned long int bme280_calibration_hum(signed long int adc_H)
+uint32_t bme280_calibration_hum(int32_t adc_H)
 {
-	signed long int v_x1;
+	int32_t v_x1;
 
-	v_x1 = (t_fine - ((signed long int)76800));
-	v_x1 = (((((adc_H << 14) - (((signed long int)calib_dig_H4) << 20) - (((signed long int)calib_dig_H5) * v_x1)) +
-			  ((signed long int)16384)) >>
+	v_x1 = (t_fine - ((int32_t)76800));
+	v_x1 = (((((adc_H << 14) - (((int32_t)calib_dig_H4) << 20) - (((int32_t)calib_dig_H5) * v_x1)) +
+			  ((int32_t)16384)) >>
 			 15) *
-			(((((((v_x1 * ((signed long int)calib_dig_H6)) >> 10) *
-				 (((v_x1 * ((signed long int)calib_dig_H3)) >> 11) + ((signed long int)32768))) >>
+			(((((((v_x1 * ((int32_t)calib_dig_H6)) >> 10) *
+				 (((v_x1 * ((int32_t)calib_dig_H3)) >> 11) + ((int32_t)32768))) >>
 				10) +
-			   ((signed long int)2097152)) *
-				  ((signed long int)calib_dig_H2) +
+			   ((int32_t)2097152)) *
+				  ((int32_t)calib_dig_H2) +
 			  8192) >>
 			 14));
-	v_x1 = (v_x1 - (((((v_x1 >> 15) * (v_x1 >> 15)) >> 7) * ((signed long int)calib_dig_H1)) >> 4));
+	v_x1 = (v_x1 - (((((v_x1 >> 15) * (v_x1 >> 15)) >> 7) * ((int32_t)calib_dig_H1)) >> 4));
 	v_x1 = (v_x1 < 0 ? 0 : v_x1);
 	v_x1 = (v_x1 > 419430400 ? 419430400 : v_x1);
-	return (unsigned long int)(v_x1 >> 12);
+	return (uint32_t)(v_x1 >> 12);
 }
 
 bool bme280_send_i2c_trigger_forced_read()
