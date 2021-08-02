@@ -38,7 +38,8 @@ void app_main()
         nvs_flash_init();
     }
 
-    if (bme280_init(BME280_MODE_FORCED))
+    bme280_config_t bme280_config = bme280_config_default;
+    if (bme280_init(bme280_config))
     {
         xTaskCreate(bme280_task, "bme280_task", 1024, NULL, 2, NULL);
     }

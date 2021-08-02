@@ -51,15 +51,7 @@ int16_t calib_dig_H4;
 int16_t calib_dig_H5;
 int8_t calib_dig_H6;
 
-uint8_t osrs_t = 2;	 // Temperature oversampling x 2
-uint8_t osrs_p = 16; // Pressure oversampling x 16
-uint8_t osrs_h = 1;	 // Humidity oversampling x 1
-
-uint8_t t_sb = 4;	  // Tstandby, 5=1000ms, 4=500ms
-uint8_t filter = 0;	  // Filter off
-uint8_t spi3w_en = 0; // 3-wire SPI Disable
-
-uint8_t bme280_operation_mode = BME280_MODE_NORMAL;
+bme280_config_t bme280_config;
 
 uint32_t hum_raw, temp_raw, pres_raw;
 int32_t t_fine;
@@ -71,11 +63,11 @@ bool bme280_read_data(uint8_t read_reg, uint8_t *data, size_t data_len)
 	esp_err_t err;
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, BME280_W, true);
+	i2c_master_write_byte(cmd, (bme280_config.address << 1) | I2C_MASTER_WRITE, true);
 	i2c_master_write_byte(cmd, read_reg, true);
 	i2c_master_stop(cmd);
 	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, BME280_R, true);
+	i2c_master_write_byte(cmd, (bme280_config.address << 1) | I2C_MASTER_READ, true);
 	i2c_master_read(cmd, data, data_len, true);
 	i2c_master_stop(cmd);
 	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
@@ -89,7 +81,7 @@ bool bme280_write_data(uint8_t write_reg, uint8_t *data, size_t data_len)
 	esp_err_t err;
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, BME280_W, true);
+	i2c_master_write_byte(cmd, (bme280_config.address << 1) | I2C_MASTER_WRITE, true);
 	i2c_master_write_byte(cmd, write_reg, true);
 	i2c_master_write(cmd, data, data_len, true);
 	i2c_master_stop(cmd);
@@ -131,9 +123,9 @@ bool i2c_master_init()
 
 bool bme280_write_config_registers(void)
 {
-	uint8_t ctrl_meas_reg = (osrs_t << 5) | (osrs_p << 2) | bme280_operation_mode;
-	uint8_t ctrl_hum_reg = osrs_h;
-	uint8_t config_reg = (t_sb << 5) | (filter << 2) | spi3w_en;
+	uint8_t ctrl_meas_reg = (bme280_config.osrs_t << 5) | (bme280_config.osrs_p << 2) | bme280_config.operation_mode;
+	uint8_t ctrl_hum_reg = bme280_config.osrs_h;
+	uint8_t config_reg = (bme280_config.t_sb << 5) | (bme280_config.filter << 2) | bme280_config.spi3w_en;
 
 	if (!bme280_write_data(BME280_REG_CTRL_HUM, &ctrl_hum_reg, 1) ||
 		!bme280_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1) ||
@@ -270,7 +262,7 @@ uint32_t bme280_calibration_hum(int32_t adc_H)
 
 bool bme280_send_i2c_trigger_forced_read()
 {
-	uint8_t ctrl_meas_reg = (osrs_t << 5) | (osrs_p << 2) | bme280_operation_mode;
+	uint8_t ctrl_meas_reg = (bme280_config.osrs_t << 5) | (bme280_config.osrs_p << 2) | bme280_config.operation_mode;
 
 	if (!bme280_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1))
 	{
@@ -290,10 +282,10 @@ bool bme280_send_i2c_read_sensor_data()
 	uint8_t data[8];
 
 #ifdef BME280_DEBUG
-	printf("bme280_send_i2c_read_sensor_data: operation mode = %d\r\n", bme280_operation_mode);
+	printf("bme280_send_i2c_read_sensor_data: operation mode = %d\r\n", bme280_config.operation_mode);
 #endif
 
-	if (bme280_operation_mode == BME280_MODE_FORCED)
+	if (bme280_config.operation_mode == BME280_MODE_FORCED)
 	{
 		if (!bme280_send_i2c_trigger_forced_read())
 		{
@@ -472,9 +464,9 @@ bool bme280_read_calibration_registers(void)
 	return true;
 }
 
-bool bme280_init(uint8_t operation_mode)
+bool bme280_init(bme280_config_t config)
 {
-	bme280_operation_mode = operation_mode;
+	bme280_config = config;
 
 	if (!i2c_master_init() ||
 		!bme280_verify_chip_id() ||
