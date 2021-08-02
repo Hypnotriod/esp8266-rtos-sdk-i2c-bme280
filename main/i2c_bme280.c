@@ -97,30 +97,53 @@ bool bme280_write_data(uint8_t write_reg, uint8_t *data, size_t data_len)
 	return (err == ESP_OK);
 }
 
-static esp_err_t i2c_master_init()
+bool i2c_master_init()
 {
-	int i2c_master_port = I2C_NUM_0;
+	esp_err_t err;
 	i2c_config_t conf;
+	int i2c_master_port = I2C_NUM_0;
 	conf.mode = I2C_MODE_MASTER;
 	conf.sda_io_num = I2C_MASTER_SDA_IO;
 	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.scl_io_num = I2C_MASTER_SCL_IO;
 	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.clk_stretch_tick = 300;
-	i2c_driver_install(i2c_master_port, conf.mode);
-	i2c_param_config(i2c_master_port, &conf);
-	return ESP_OK;
+	err = i2c_driver_install(i2c_master_port, conf.mode);
+	if (err != ESP_OK)
+	{
+#ifdef BME280_DEBUG
+		printf("i2c_master_init: i2c_driver_install error!\r\n");
+#endif
+		return false;
+	}
+	err = i2c_param_config(i2c_master_port, &conf);
+	if (err != ESP_OK)
+	{
+#ifdef BME280_DEBUG
+		printf("i2c_master_init: i2c_param_config error!\r\n");
+#endif
+		return false;
+	}
+	return true;
 }
 
-void bme280_write_config_registers(void)
+bool bme280_write_config_registers(void)
 {
 	uint8_t ctrl_meas_reg = (osrs_t << 5) | (osrs_p << 2) | bme280_operation_mode;
 	uint8_t ctrl_hum_reg = osrs_h;
 	uint8_t config_reg = (t_sb << 5) | (filter << 2) | spi3w_en;
 
-	bme280_write_data(BME280_REG_CTRL_HUM, &ctrl_hum_reg, 1);
-	bme280_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1);
-	bme280_write_data(BME280_REG_CONFIG, &config_reg, 1);
+	if (!bme280_write_data(BME280_REG_CTRL_HUM, &ctrl_hum_reg, 1) ||
+		!bme280_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1) ||
+		!bme280_write_data(BME280_REG_CONFIG, &config_reg, 1))
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_write_config_registers: error!\r\n");
+#endif
+		return false;
+	}
+
+	return true;
 }
 
 bool bme280_verify_chip_id(void)
@@ -305,144 +328,162 @@ bool bme280_send_i2c_read_sensor_data()
 	return true;
 }
 
-void bme280_read_calibration_registers(void)
+bool bme280_read_calibration_registers(void)
 {
 	uint8_t data[24];
 
-	//////////////
-	// Read section 0x88
-	if (!bme280_read_data(0x88, data, sizeof(data)))
+	// ***************** Read section 0x88:0x9F *****************
+	if (!bme280_read_data(0x88, data, 24))
 	{
 #ifdef BME280_DEBUG
-		printf("bme280_read_calibration_registers: section 0x88 error!\r\n");
+		printf("bme280_read_calibration_registers: section 0x88:0x9F error!\r\n");
 #endif
-		return;
+		return false;
 	}
 
+	// 0x88 / 0x89
 	calib_dig_T1 = data[0] | (data[1] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_T1 = %u\r\n", data[0], data[1], calib_dig_T1);
 #endif
 
+	// 0x8A / 0x8B
 	calib_dig_T2 = data[2] | (data[3] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_T2 = %d\r\n", data[2], data[3], calib_dig_T2);
 #endif
 
+	// 0x8C / 0x8D
 	calib_dig_T3 = data[4] | (data[5] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_T3 = %d\r\n", data[4], data[5], calib_dig_T3);
 #endif
 
+	// 0x8E / 0x8F
 	calib_dig_P1 = data[6] | (data[7] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P1 = %u\r\n", data[6], data[7], calib_dig_P1);
 #endif
 
+	// 0x90 / 0x91
 	calib_dig_P2 = data[8] | (data[9] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P2 = %d\r\n", data[8], data[9], calib_dig_P2);
 #endif
 
+	// 0x92 / 0x93
 	calib_dig_P3 = data[10] | (data[11] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P3 = %d\r\n", data[10], data[11], calib_dig_P3);
 #endif
 
+	// 0x94 / 0x95
 	calib_dig_P4 = data[12] | (data[13] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P4 = %d\r\n", data[12], data[13], calib_dig_P4);
 #endif
 
+	// 0x96 / 0x97
 	calib_dig_P5 = data[14] | (data[15] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P5 = %d\r\n", data[14], data[15], calib_dig_P5);
 #endif
 
+	// 0x98 / 0x99
 	calib_dig_P6 = data[16] | (data[17] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P6 = %d\r\n", data[16], data[17], calib_dig_P6);
 #endif
 
+	// 0x9A / 0x9B
 	calib_dig_P7 = data[18] | (data[19] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P7 = %d\r\n", data[18], data[19], calib_dig_P7);
 #endif
 
+	// 0x9C / 0x9D
 	calib_dig_P8 = data[20] | (data[21] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P8 = %d\r\n", data[20], data[21], calib_dig_P8);
 #endif
 
+	// 0x9E / 0x9F
 	calib_dig_P9 = data[22] | (data[23] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P9 = %d\r\n", data[22], data[23], calib_dig_P9);
 #endif
 
-	//////////////
-	// Read section 0xA1
+	// ***************** Read section 0xA1 *****************
 	if (!bme280_read_data(0xA1, data, 1))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_read_calibration_registers: section 0xA1 error!\r\n");
 #endif
-		return;
+		return false;
 	}
 
+	// 0xA1
 	calib_dig_H1 = data[0];
 #ifdef BME280_DEBUG
 	printf("msb: 0x%X = calib_dig_H1 = %d\r\n", data[0], calib_dig_H1);
 #endif
 
-	//////////////
-	// Read section 0xE1
+	// ***************** Read section 0xE1:0xE6 *****************
 	if (!bme280_read_data(0xE1, data, 7))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_read_calibration_registers: section 0xE1 error!\r\n");
 #endif
-		return;
+		return false;
 	}
 
+	// 0xE1 / 0xE2
 	calib_dig_H2 = data[0] | (data[1] << 8);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_H2 = %d\r\n", data[0], data[1], calib_dig_H2);
 #endif
 
+	// 0xE3
 	calib_dig_H3 = data[2];
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X = calib_dig_H3 = %d\r\n", data[2], calib_dig_H3);
 #endif
 
+	// 0xE4 / 0xE5[3:0]
 	calib_dig_H4 = (data[3] << 4) | (0x0f & data[4]);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_H4 = %d\r\n", data[3], data[4], calib_dig_H4);
 #endif
 
-	calib_dig_H5 = (data[5] << 4) | ((data[4] >> 4) & 0x0F);
+	// 0xE5[7:4] / 0xE6
+	calib_dig_H5 = (data[4] >> 4) | (data[5] << 4);
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_H5 = %d\r\n", data[5], data[4], calib_dig_H5);
 #endif
 
+	// 0xE7
 	calib_dig_H6 = data[6];
 #ifdef BME280_DEBUG
 	printf("lsb 0x%X = calib_dig_H6 = %d\r\n", data[6], calib_dig_H6);
 #endif
+
+	return true;
 }
 
 bool bme280_init(uint8_t operation_mode)
 {
-	i2c_master_init();
-
-	if (!bme280_verify_chip_id())
-	{
-		return false;
-	}
 	bme280_operation_mode = operation_mode;
 
-	bme280_write_config_registers();
-
-	bme280_read_calibration_registers();
+	if (!i2c_master_init() ||
+		!bme280_verify_chip_id() ||
+		!bme280_write_config_registers() ||
+		!bme280_read_calibration_registers())
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_init: failed\r\n");
+#endif
+		return false;
+	}
 
 #ifdef BME280_DEBUG
 	printf("bme280_init: success\r\n");
