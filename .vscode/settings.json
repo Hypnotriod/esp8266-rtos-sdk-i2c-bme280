@@ -1,17 +1,12 @@
 {
-    "terminal.integrated.shell.windows": "C:/msys32/usr/bin/bash.exe",
+    "terminal.integrated.shell.windows": "${MSYS2}/usr/bin/bash.exe",
     "terminal.integrated.shellArgs.windows": [
         "--login",
         "-i",
     ],
     "diffEditor.ignoreTrimWhitespace": false,
     "files.associations": {
-        "freertos.h": "c",
-        "sdkconfig.h": "c",
-        "i2c_bme280.h": "c",
-        "gpio_register.h": "c",
-        "i2c.h": "c",
-        "stdint.h": "c",
-        "esp_err.h": "c"
+        "*.h": "c",
+        "*.c": "c"
     }
 }

@@ -3,6 +3,9 @@
         {
             "name": "default",
             "includePath": [
+                "${MSYS2}/opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/8.4.0/include",
+                "${MSYS2}/opt/xtensa-lx106-elf/xtensa-lx106-elf/include",
+                "${MSYS2}/opt/xtensa-lx106-elf/xtensa-lx106-elf/include/ssp",
                 "${workspaceFolder}/build/include",
                 "${workspaceFolder}/main",
                 "${IDF_PATH}/components/esp8266/include",
