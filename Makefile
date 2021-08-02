@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := ap_test
+PROJECT_NAME := bme280_i2c
 
 include $(IDF_PATH)/make/project.mk
 
