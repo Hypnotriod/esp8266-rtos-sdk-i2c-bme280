@@ -52,6 +52,7 @@ int16_t calib_dig_H5;
 int8_t calib_dig_H6;
 
 bme280_config_t bme280_config;
+uint8_t bme280_chip_id;
 
 uint32_t hum_raw, temp_raw, pres_raw;
 int32_t t_fine;
@@ -65,15 +66,22 @@ bool bme280_read_data(uint8_t read_reg, uint8_t *data, size_t data_len)
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, bme280_config.address | I2C_MASTER_WRITE, true);
 	i2c_master_write_byte(cmd, read_reg, true);
-	i2c_master_stop(cmd);
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, bme280_config.address | I2C_MASTER_READ, true);
-	i2c_master_read(cmd, data, data_len, true);
+	i2c_master_read(cmd, data, data_len, I2C_MASTER_LAST_NACK);
 	i2c_master_stop(cmd);
 	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
 
-	return (err == ESP_OK);
+	if (err != ESP_OK)
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_read_data: reg 0x%X error: 0x%X\r\n", read_reg, err);
+#endif
+		return false;
+	}
+
+	return true;
 }
 
 bool bme280_write_data(uint8_t write_reg, uint8_t *data, size_t data_len)
@@ -88,7 +96,15 @@ bool bme280_write_data(uint8_t write_reg, uint8_t *data, size_t data_len)
 	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
 
-	return (err == ESP_OK);
+	if (err != ESP_OK)
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_write_data: reg 0x%X error: 0x%X\r\n", write_reg, err);
+#endif
+		return false;
+	}
+
+	return true;
 }
 
 bool i2c_master_init()
@@ -97,9 +113,9 @@ bool i2c_master_init()
 	i2c_config_t conf;
 	int i2c_master_port = I2C_NUM_0;
 	conf.mode = I2C_MODE_MASTER;
-	conf.sda_io_num = I2C_MASTER_SDA_IO;
+	conf.sda_io_num = bme280_config.gpio_sda;
 	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.scl_io_num = I2C_MASTER_SCL_IO;
+	conf.scl_io_num = bme280_config.gpio_scl;
 	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.clk_stretch_tick = 300;
 	err = i2c_driver_install(i2c_master_port, conf.mode);
@@ -142,9 +158,7 @@ bool bme280_write_config_registers(void)
 
 bool bme280_verify_chip_id(void)
 {
-	uint8_t version;
-
-	if (!bme280_read_data(BME280_CHIP_ID_REG, &version, 1))
+	if (!bme280_read_data(BME280_CHIP_ID_REG, &bme280_chip_id, 1))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_verify_chip_id: error!\r\n");
@@ -152,10 +166,11 @@ bool bme280_verify_chip_id(void)
 		return false;
 	}
 
-	if (version != BME280_CHIP_ID)
+	if (bme280_chip_id != BME280_CHIP_ID && bme280_chip_id != BMP280_CHIP_ID)
 	{
 #ifdef BME280_DEBUG
-		printf("bme280_verify_chip_id: expected chip id 0x%X, found chip id 0x%X\r\n", BME280_CHIP_ID, version);
+		printf("bme280_verify_chip_id: expected chip id 0x%X or 0x%X, found chip id 0x%X\r\n",
+			   BME280_CHIP_ID, BMP280_CHIP_ID, bme280_chip_id);
 #endif
 		return false;
 	}
@@ -166,6 +181,21 @@ bool bme280_verify_chip_id(void)
 int32_t bme280_get_t_fine()
 {
 	return t_fine;
+}
+
+bool bme280_is_temperature_supported()
+{
+	return (bme280_chip_id == BMP280_CHIP_ID || bme280_chip_id == BME280_CHIP_ID);
+}
+
+bool bme280_is_pressure_supported()
+{
+	return (bme280_chip_id == BMP280_CHIP_ID || bme280_chip_id == BME280_CHIP_ID);
+}
+
+bool bme280_is_humidity_supported()
+{
+	return (bme280_chip_id == BME280_CHIP_ID);
 }
 
 int32_t bme280_get_temperature()
@@ -293,7 +323,7 @@ bool bme280_send_i2c_read_sensor_data()
 		}
 	}
 
-	if (!bme280_read_data(0xF7, data, sizeof(data)))
+	if (!bme280_read_data(0xF7, data, bme280_chip_id == BMP280_CHIP_ID ? 6 : 8))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_send_i2c_read_sensor_data: section 0xF7 error!\r\n");
@@ -312,6 +342,11 @@ bool bme280_send_i2c_read_sensor_data()
 #ifdef BME280_DEBUG
 	printf("temp_raw 3: %X, temp_raw 4: %X, temp_raw 5: %X\r\n", data[3], data[4], data[5]);
 #endif
+
+	if (bme280_chip_id == BMP280_CHIP_ID)
+	{
+		return true;
+	}
 
 	//0xFD - humidity
 	hum_raw = (data[6] << 8) | data[7];
@@ -407,6 +442,11 @@ bool bme280_read_calibration_registers(void)
 	printf("lsb 0x%X, msb: 0x%X = calib_dig_P9 = %d\r\n", data[22], data[23], calib_dig_P9);
 #endif
 
+	if (bme280_chip_id == BMP280_CHIP_ID)
+	{
+		return true;
+	}
+
 	// ***************** Read section 0xA1 *****************
 	if (!bme280_read_data(0xA1, data, 1))
 	{
@@ -496,7 +536,10 @@ bool bme280_read_sensor_data()
 
 	temp_act = bme280_calibration_temp(temp_raw);
 	press_act = bme280_calibration_press(pres_raw);
-	hum_act = bme280_calibration_hum(hum_raw);
+	if (bme280_chip_id == BME280_CHIP_ID)
+	{
+		hum_act = bme280_calibration_hum(hum_raw);
+	}
 
 	return true;
 }

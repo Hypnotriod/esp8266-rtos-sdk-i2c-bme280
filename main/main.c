@@ -11,40 +11,39 @@
 
 static void bme280_task(void *prv)
 {
+    bme280_config_t bme280_config = bme280_config_default;
     int32_t temp;
     uint32_t press;
     uint32_t hum;
 
-    while (bme280_read_sensor_data())
+    if (bme280_init(bme280_config))
     {
-        temp = bme280_get_temperature();
-        press = bme280_get_pressure();
-        hum = bme280_get_humidity();
+        while (bme280_read_sensor_data())
+        {
+            temp = bme280_get_temperature();
+            printf("Temp: %d.%d DegC", (int)(temp / 100), (int)(temp % 100));
+            press = bme280_get_pressure();
+            printf(", Pres: %d.%d hPa", (int)(press / 100), (int)(press % 100));
+            if (bme280_is_humidity_supported())
+            {
+                hum = bme280_get_humidity();
+                printf(", Hum: %d.%d pct \r\n", (int)(hum / 1024), (int)(hum % 1024));
+            }
+            else
+            {
+                printf("\r\n");
+            }
 
-        printf("Temp: %d.%d DegC, ", (int)(temp / 100), (int)(temp % 100));
-        printf("Pres: %d.%d hPa, ", (int)(press / 100), (int)(press % 100));
-        printf("Hum: %d.%d pct \r\n", (int)(hum / 1024), (int)(hum % 1024));
-
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        }
+    }
+    printf("bme280_task failed!");
+    while (1)
+    {
     }
 }
 
 void app_main()
 {
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES)
-    {
-        nvs_flash_erase();
-        nvs_flash_init();
-    }
-
-    bme280_config_t bme280_config = bme280_config_default;
-    if (bme280_init(bme280_config))
-    {
-        xTaskCreate(bme280_task, "bme280_task", 1024, NULL, 2, NULL);
-    }
-
-    while (1)
-    {
-    }
+    xTaskCreate(bme280_task, "bme280_task", 4096, NULL, 2, NULL);
 }

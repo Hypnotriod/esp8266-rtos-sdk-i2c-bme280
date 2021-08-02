@@ -30,11 +30,11 @@ THE SOFTWARE.
 #ifndef __I2C_BME280_H
 #define __I2C_BME280_H
 
-#define I2C_MASTER_SCL_IO 2  /*!< gpio number for I2C master clock */
-#define I2C_MASTER_SDA_IO 14 /*!< gpio number for I2C master data  */
+#define BME280_I2C_MASTER_SCL_PIN_DEFAULT 5
+#define BME280_I2C_MASTER_SDA_PIN_DEFAULT 4
 
-#define BME280_I2C_ADDR_PRIM 0x76
-#define BME280_I2C_ADDR_SEC 0x77
+#define BME280_I2C_ADDR_PRIM 0x76 // SDO to GND
+#define BME280_I2C_ADDR_SEC 0x77  // SDO to VDDIO
 
 #define BME280_NO_OVERSAMPLING 0x00
 #define BME280_OVERSAMPLING_1X 0x01
@@ -60,6 +60,7 @@ THE SOFTWARE.
 
 #define BME280_CHIP_ID_REG 0xD0
 #define BME280_CHIP_ID 0x60
+#define BMP280_CHIP_ID 0x58
 
 #define BME280_REG_CTRL_HUM 0xF2
 #define BME280_REG_CTRL_MEAS 0xF4
@@ -68,22 +69,26 @@ THE SOFTWARE.
 #define BME280_MODE_NORMAL 0x03 // reads sensors at set interval
 #define BME280_MODE_FORCED 0x01 // reads sensors once when you write this register
 
-#define BME280_DEBUG // uncomment for debugging messages
+// #define BME280_DEBUG // uncomment for debugging messages
 
-#define bme280_config_default                 \
-    {                                         \
-        .address = BME280_I2C_ADDR_PRIM,      \
-        .operation_mode = BME280_MODE_FORCED, \
-        .osrs_t = BME280_OVERSAMPLING_2X,     \
-        .osrs_p = BME280_OVERSAMPLING_16X,    \
-        .osrs_h = BME280_OVERSAMPLING_1X,     \
-        .t_sb = BME280_STANDBY_TIME_500_MS,   \
-        .filter = BME280_FILTER_COEFF_OFF,    \
-        .spi3w_en = 0                         \
+#define bme280_config_default                          \
+    {                                                  \
+        .gpio_scl = BME280_I2C_MASTER_SCL_PIN_DEFAULT, \
+        .gpio_sda = BME280_I2C_MASTER_SDA_PIN_DEFAULT, \
+        .address = BME280_I2C_ADDR_PRIM,               \
+        .operation_mode = BME280_MODE_FORCED,          \
+        .osrs_t = BME280_OVERSAMPLING_2X,              \
+        .osrs_p = BME280_OVERSAMPLING_16X,             \
+        .osrs_h = BME280_OVERSAMPLING_1X,              \
+        .t_sb = BME280_STANDBY_TIME_500_MS,            \
+        .filter = BME280_FILTER_COEFF_OFF,             \
+        .spi3w_en = 0                                  \
     }
 
 typedef struct
 {
+    uint8_t gpio_scl;       // I2C SCl pin number
+    uint8_t gpio_sda;       // I2C SDA pin number
     uint8_t address;        // Slave address
     uint8_t operation_mode; // Operation mode
     uint8_t osrs_t;         // Temperature oversampling
@@ -104,5 +109,8 @@ uint32_t bme280_get_humidity();
 uint32_t bme280_get_temperature_raw();
 uint32_t bme280_get_tressure_raw();
 uint32_t bme280_get_humidity_raw();
+bool bme280_is_temperature_supported();
+bool bme280_is_pressure_supported();
+bool bme280_is_humidity_supported();
 
 #endif
