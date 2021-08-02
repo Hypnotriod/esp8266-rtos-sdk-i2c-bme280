@@ -51,9 +51,9 @@ int16_t calib_dig_H4;
 int16_t calib_dig_H5;
 int8_t calib_dig_H6;
 
-uint8_t osrs_t = 1; // Temperature oversampling x 1
-uint8_t osrs_p = 1; // Pressure oversampling x 1
-uint8_t osrs_h = 1; // Humidity oversampling x 1
+uint8_t osrs_t = 2;	 // Temperature oversampling x 2
+uint8_t osrs_p = 16; // Pressure oversampling x 16
+uint8_t osrs_h = 1;	 // Humidity oversampling x 1
 
 uint8_t t_sb = 4;	  // Tstandby, 5=1000ms, 4=500ms
 uint8_t filter = 0;	  // Filter off
@@ -73,6 +73,8 @@ bool bme280_read_data(uint8_t read_reg, uint8_t *data, size_t data_len)
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, BME280_W, true);
 	i2c_master_write_byte(cmd, read_reg, true);
+	i2c_master_stop(cmd);
+	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, BME280_R, true);
 	i2c_master_read(cmd, data, data_len, true);
 	i2c_master_stop(cmd);
