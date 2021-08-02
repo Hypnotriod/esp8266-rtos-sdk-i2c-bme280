@@ -66,43 +66,35 @@ int32_t t_fine;
 int32_t temp_act;
 uint32_t press_act, hum_act;
 
-i2c_cmd_handle_t bme280_prepare_write()
+bool bme280_read_data(uint8_t read_reg, uint8_t *data, size_t data_len)
 {
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, BME280_W, true);
-	return cmd;
-}
-
-i2c_cmd_handle_t bme280_prepare_read(uint8_t read_reg)
-{
+	esp_err_t err;
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, BME280_W, true);
 	i2c_master_write_byte(cmd, read_reg, true);
 	i2c_master_write_byte(cmd, BME280_R, true);
-	return cmd;
-}
-
-bool bme280_write_data(uint8_t write_reg, uint8_t data)
-{
-	esp_err_t err;
-	i2c_cmd_handle_t cmd = bme280_prepare_write();
-	i2c_master_write_byte(cmd, write_reg, true);
-	i2c_master_write_byte(cmd, data, true);
+	i2c_master_read(cmd, data, data_len, true);
 	i2c_master_stop(cmd);
 	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
 
-	if (err != ESP_OK)
-	{
-#ifdef BME280_DEBUG
-		printf("bme280_write_data: (%02x) error!\r\n", data);
-#endif
-		return false;
-	}
+	return (err == ESP_OK);
+}
 
-	return true;
+bool bme280_write_data(uint8_t write_reg, uint8_t *data, size_t data_len)
+{
+	esp_err_t err;
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, BME280_W, true);
+	i2c_master_write_byte(cmd, write_reg, true);
+	i2c_master_write(cmd, data, data_len, true);
+	i2c_master_stop(cmd);
+	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+
+	return (err == ESP_OK);
 }
 
 static esp_err_t i2c_master_init()
@@ -124,25 +116,18 @@ void bme280_write_config_registers(void)
 {
 	uint8_t ctrl_meas_reg = (osrs_t << 5) | (osrs_p << 2) | bme280_operation_mode;
 	uint8_t ctrl_hum_reg = osrs_h;
-
 	uint8_t config_reg = (t_sb << 5) | (filter << 2) | spi3w_en;
 
-	bme280_write_data(BME280_REG_CTRL_HUM, ctrl_hum_reg);
-	bme280_write_data(BME280_REG_CTRL_MEAS, ctrl_meas_reg);
-	bme280_write_data(BME280_REG_CONFIG, config_reg);
+	bme280_write_data(BME280_REG_CTRL_HUM, &ctrl_hum_reg, 1);
+	bme280_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1);
+	bme280_write_data(BME280_REG_CONFIG, &config_reg, 1);
 }
 
 bool bme280_verify_chip_id(void)
 {
-	esp_err_t err;
 	uint8_t version;
-	i2c_cmd_handle_t cmd = bme280_prepare_read(BME280_CHIP_ID_REG);
-	i2c_master_read_byte(cmd, &version, false);
-	i2c_master_stop(cmd);
-	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
 
-	if (err != ESP_OK)
+	if (!bme280_read_data(BME280_CHIP_ID_REG, &version, 1))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_verify_chip_id: error!\r\n");
@@ -262,7 +247,7 @@ bool bme280_send_i2c_trigger_forced_read()
 {
 	uint8_t ctrl_meas_reg = (osrs_t << 5) | (osrs_p << 2) | bme280_operation_mode;
 
-	if (!bme280_write_data(BME280_REG_CTRL_MEAS, ctrl_meas_reg))
+	if (!bme280_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_send_i2c_trigger_forced_read: error!\r\n");
@@ -278,8 +263,6 @@ bool bme280_send_i2c_trigger_forced_read()
 bool bme280_send_i2c_read_sensor_data()
 {
 	uint8_t data[8];
-	esp_err_t err;
-	i2c_cmd_handle_t cmd;
 
 #ifdef BME280_DEBUG
 	printf("bme280_send_i2c_read_sensor_data: operation mode = %d\r\n", bme280_operation_mode);
@@ -293,16 +276,7 @@ bool bme280_send_i2c_read_sensor_data()
 		}
 	}
 
-	cmd = bme280_prepare_read(0xF7);
-	for (size_t i = 0; i < sizeof(data); i++)
-	{
-		i2c_master_read_byte(cmd, &data[i], true);
-	}
-	i2c_master_stop(cmd);
-	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-
-	if (err != ESP_OK)
+	if (!bme280_read_data(0xF7, data, sizeof(data)))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_send_i2c_read_sensor_data: section 0xF7 error!\r\n");
@@ -334,21 +308,10 @@ bool bme280_send_i2c_read_sensor_data()
 void bme280_read_calibration_registers(void)
 {
 	uint8_t data[24];
-	esp_err_t err;
-	i2c_cmd_handle_t cmd;
 
 	//////////////
 	// Read section 0x88
-	cmd = bme280_prepare_read(0x88);
-	for (size_t i = 0; i < sizeof(data); i++)
-	{
-		i2c_master_read_byte(cmd, &data[i], true);
-	}
-	i2c_master_stop(cmd);
-	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-
-	if (err != ESP_OK)
+	if (!bme280_read_data(0x88, data, sizeof(data)))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_read_calibration_registers: section 0x88 error!\r\n");
@@ -418,13 +381,7 @@ void bme280_read_calibration_registers(void)
 
 	//////////////
 	// Read section 0xA1
-	cmd = bme280_prepare_read(0xA1);
-	i2c_master_read_byte(cmd, &data[0], false);
-	i2c_master_stop(cmd);
-	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-
-	if (err != ESP_OK)
+	if (!bme280_read_data(0xA1, data, 1))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_read_calibration_registers: section 0xA1 error!\r\n");
@@ -439,16 +396,7 @@ void bme280_read_calibration_registers(void)
 
 	//////////////
 	// Read section 0xE1
-	cmd = bme280_prepare_read(0xE1);
-	for (size_t i = 0; i < 7; i++)
-	{
-		i2c_master_read_byte(cmd, &data[i], true);
-	}
-	i2c_master_stop(cmd);
-	err = i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-
-	if (err != ESP_OK)
+	if (!bme280_read_data(0xE1, data, 7))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_read_calibration_registers: section 0xE1 error!\r\n");
