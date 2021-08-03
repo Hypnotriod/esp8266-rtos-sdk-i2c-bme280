@@ -22,13 +22,17 @@ static void bme280_task(void *prv)
         {
             if (!bme280_trigger_forced_read())
             {
-                break;
+                printf("bme280_trigger_forced_read failed!\r\n");
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
+                continue;
             }
-            vTaskDelay(10 / portTICK_PERIOD_MS);
+            vTaskDelay(20 / portTICK_PERIOD_MS);
 
             if (!bme280_read_sensor_data())
             {
-                break;
+                printf("bme280_read_sensor_data failed!\r\n");
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
+                continue;
             }
 
             temp = bme280_get_temperature();
@@ -45,14 +49,11 @@ static void bme280_task(void *prv)
                 printf("\r\n");
             }
 
-            vTaskDelay(990 / portTICK_PERIOD_MS);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
     }
     bme280_dispose();
-    printf("bme280_task failed!");
-    while (1)
-    {
-    }
+    printf("bme280_task failed!\r\n");
 }
 
 void app_main()

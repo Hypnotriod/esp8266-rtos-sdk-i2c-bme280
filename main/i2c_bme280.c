@@ -445,8 +445,6 @@ bool bme280_init(bme280_config_t config)
 	bme280_config = config;
 	bme280_config.address <<= 1;
 
-	bme280_dispose();
-
 	if (!i2c_master_init() ||
 		!bme280_verify_chip_id() ||
 		!bme280_write_config_registers() ||
@@ -455,8 +453,6 @@ bool bme280_init(bme280_config_t config)
 #ifdef BME280_DEBUG
 		printf("bme280_init: failed\r\n");
 #endif
-
-		bme280_dispose();
 		return false;
 	}
 
