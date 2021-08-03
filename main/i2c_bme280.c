@@ -58,7 +58,7 @@ int32_t t_fine;
 int32_t temp_act;
 uint32_t press_act, hum_act;
 
-bool bme280_read_data(uint8_t read_reg, uint8_t *data, size_t data_len)
+bool i2c_master_read_data(uint8_t read_reg, uint8_t *data, size_t data_len)
 {
 	esp_err_t err;
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
@@ -75,7 +75,7 @@ bool bme280_read_data(uint8_t read_reg, uint8_t *data, size_t data_len)
 	if (err != ESP_OK)
 	{
 #ifdef BME280_DEBUG
-		printf("bme280_read_data: reg 0x%X error: 0x%X\r\n", read_reg, err);
+		printf("i2c_master_read_data: reg 0x%X error: 0x%X\r\n", read_reg, err);
 #endif
 		return false;
 	}
@@ -83,7 +83,7 @@ bool bme280_read_data(uint8_t read_reg, uint8_t *data, size_t data_len)
 	return true;
 }
 
-bool bme280_write_data(uint8_t write_reg, uint8_t *data, size_t data_len)
+bool i2c_master_write_data(uint8_t write_reg, uint8_t *data, size_t data_len)
 {
 	esp_err_t err;
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
@@ -98,7 +98,7 @@ bool bme280_write_data(uint8_t write_reg, uint8_t *data, size_t data_len)
 	if (err != ESP_OK)
 	{
 #ifdef BME280_DEBUG
-		printf("bme280_write_data: reg 0x%X error: 0x%X\r\n", write_reg, err);
+		printf("i2c_master_write_data: reg 0x%X error: 0x%X\r\n", write_reg, err);
 #endif
 		return false;
 	}
@@ -146,9 +146,9 @@ bool bme280_write_config_registers(void)
 	uint8_t ctrl_hum_reg = bme280_config.osrs_h;
 	uint8_t config_reg = (bme280_config.t_sb << 5) | (bme280_config.filter << 2) | bme280_config.spi3w_en;
 
-	if (!bme280_write_data(BME280_REG_CTRL_HUM, &ctrl_hum_reg, 1) ||
-		!bme280_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1) ||
-		!bme280_write_data(BME280_REG_CONFIG, &config_reg, 1))
+	if (!i2c_master_write_data(BME280_REG_CTRL_HUM, &ctrl_hum_reg, 1) ||
+		!i2c_master_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1) ||
+		!i2c_master_write_data(BME280_REG_CONFIG, &config_reg, 1))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_write_config_registers: error!\r\n");
@@ -161,7 +161,7 @@ bool bme280_write_config_registers(void)
 
 bool bme280_verify_chip_id(void)
 {
-	if (!bme280_read_data(BME280_CHIP_ID_REG, &bme280_chip_id, 1))
+	if (!i2c_master_read_data(BME280_CHIP_ID_REG, &bme280_chip_id, 1))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_verify_chip_id: error!\r\n");
@@ -293,65 +293,12 @@ uint32_t bme280_calibration_hum(int32_t adc_H)
 	return (uint32_t)(v_x1 >> 12);
 }
 
-bool bme280_trigger_forced_read_i2c()
-{
-	uint8_t ctrl_meas_reg = (bme280_config.osrs_t << 5) | (bme280_config.osrs_p << 2) | bme280_config.operation_mode;
-
-	if (!bme280_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1))
-	{
-#ifdef BME280_DEBUG
-		printf("bme280_trigger_forced_read_i2c: error!\r\n");
-#endif
-		return false;
-	}
-
-	return true;
-}
-
-bool bme280_read_sensor_data_i2c()
-{
-	uint8_t data[8];
-
-	if (!bme280_read_data(0xF7, data, bme280_chip_id == BMP280_CHIP_ID ? 6 : 8))
-	{
-#ifdef BME280_DEBUG
-		printf("bme280_read_sensor_data_i2c: section 0xF7 error!\r\n");
-#endif
-		return false;
-	}
-
-	// 0xF7 - pressure
-	pres_raw = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4);
-#ifdef BME280_DEBUG
-	printf("pres_raw 0: %X, pres_raw 1: %X, pres_raw 2: %X\r\n", data[0], data[1], data[2]);
-#endif
-
-	//0xFA - temp
-	temp_raw = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
-#ifdef BME280_DEBUG
-	printf("temp_raw 3: %X, temp_raw 4: %X, temp_raw 5: %X\r\n", data[3], data[4], data[5]);
-#endif
-
-	if (bme280_chip_id == BMP280_CHIP_ID)
-	{
-		return true;
-	}
-
-	//0xFD - humidity
-	hum_raw = (data[6] << 8) | data[7];
-#ifdef BME280_DEBUG
-	printf("hum_raw 6: %X, hum_raw 7: %X\r\n", data[6], data[7]);
-#endif
-
-	return true;
-}
-
 bool bme280_read_calibration_registers(void)
 {
 	uint8_t data[24];
 
 	// ***************** Read section 0x88:0x9F *****************
-	if (!bme280_read_data(0x88, data, 24))
+	if (!i2c_master_read_data(0x88, data, 24))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_read_calibration_registers: section 0x88:0x9F error!\r\n");
@@ -437,7 +384,7 @@ bool bme280_read_calibration_registers(void)
 	}
 
 	// ***************** Read section 0xA1 *****************
-	if (!bme280_read_data(0xA1, data, 1))
+	if (!i2c_master_read_data(0xA1, data, 1))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_read_calibration_registers: section 0xA1 error!\r\n");
@@ -452,7 +399,7 @@ bool bme280_read_calibration_registers(void)
 #endif
 
 	// ***************** Read section 0xE1:0xE6 *****************
-	if (!bme280_read_data(0xE1, data, 7))
+	if (!i2c_master_read_data(0xE1, data, 7))
 	{
 #ifdef BME280_DEBUG
 		printf("bme280_read_calibration_registers: section 0xE1 error!\r\n");
@@ -527,21 +474,53 @@ void bme280_dispose()
 
 bool bme280_trigger_forced_read()
 {
-	return bme280_trigger_forced_read_i2c();
+	uint8_t ctrl_meas_reg = (bme280_config.osrs_t << 5) | (bme280_config.osrs_p << 2) | bme280_config.operation_mode;
+
+	if (!i2c_master_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1))
+	{
+#ifdef BME280_DEBUG
+		printf("bme280_trigger_forced_read_i2c: error!\r\n");
+#endif
+		return false;
+	}
+
+	return true;
 }
 
 bool bme280_read_sensor_data()
 {
-	if (!bme280_read_sensor_data_i2c())
+	uint8_t data[8];
+
+	if (!i2c_master_read_data(0xF7, data, bme280_chip_id == BMP280_CHIP_ID ? 6 : 8))
 	{
+#ifdef BME280_DEBUG
+		printf("bme280_read_sensor_data_i2c: section 0xF7 error!\r\n");
+#endif
 		return false;
 	}
 
-	temp_act = bme280_calibration_temp(temp_raw);
+	// 0xF7 - pressure
+	pres_raw = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4);
 	press_act = bme280_calibration_press(pres_raw);
+#ifdef BME280_DEBUG
+	printf("pres_raw 0: %X, pres_raw 1: %X, pres_raw 2: %X\r\n", data[0], data[1], data[2]);
+#endif
+
+	//0xFA - temp
+	temp_raw = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4);
+	temp_act = bme280_calibration_temp(temp_raw);
+#ifdef BME280_DEBUG
+	printf("temp_raw 3: %X, temp_raw 4: %X, temp_raw 5: %X\r\n", data[3], data[4], data[5]);
+#endif
+
 	if (bme280_chip_id == BME280_CHIP_ID)
 	{
+		//0xFD - humidity
+		hum_raw = (data[6] << 8) | data[7];
 		hum_act = bme280_calibration_hum(hum_raw);
+#ifdef BME280_DEBUG
+		printf("hum_raw 6: %X, hum_raw 7: %X\r\n", data[6], data[7]);
+#endif
 	}
 
 	return true;
