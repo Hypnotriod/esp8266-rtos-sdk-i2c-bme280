@@ -99,7 +99,7 @@ typedef struct
 } bme280_config_t;
 
 bool bme280_init(bme280_config_t config);
-bool bme280_dispose();
+void bme280_dispose();
 bool bme280_trigger_forced_read();
 bool bme280_read_sensor_data();
 

@@ -135,7 +135,7 @@ bool i2c_master_init()
 	return true;
 }
 
-bool i2c_master_dispose()
+void i2c_master_dispose()
 {
 	i2c_driver_delete(I2C_NUM_0);
 }
@@ -520,7 +520,7 @@ bool bme280_init(bme280_config_t config)
 	return true;
 }
 
-bool bme280_dispose()
+void bme280_dispose()
 {
 	i2c_master_dispose();
 }
