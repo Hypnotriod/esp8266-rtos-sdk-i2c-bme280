@@ -1,12 +1,11 @@
 /*
-The driver for the temperature, pressure, & humidity sensor BME280
-Official repository: https://github.com/RyAndrew/esp8266_i2c_bme280
-Adapted From: https://github.com/CHERTS/esp8266-i2c_bmp180
-This driver depends on the I2C driver https://github.com/zarya/esp8266_i2c_driver/
+The driver for the temperature, pressure & humidity sensor BME280, or temperature & pressure sensor BMP280
+Port for ESP8266 RTOS SDK by Ilya Pikin of: https://github.com/RyAndrew/esp8266_i2c_bme280
 
 The MIT License (MIT)
 
 Copyright (C) 2015 Andrew Rymarczyk
+Copyright (C) 2021 Ilya Pikin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -100,6 +99,8 @@ typedef struct
 } bme280_config_t;
 
 bool bme280_init(bme280_config_t config);
+bool bme280_dispose();
+bool bme280_trigger_forced_read();
 bool bme280_read_sensor_data();
 
 int32_t bme280_get_t_fine();

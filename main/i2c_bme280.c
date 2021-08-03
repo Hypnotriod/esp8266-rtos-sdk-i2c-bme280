@@ -1,12 +1,11 @@
 /*
-The driver for the temperature, pressure, & humidity sensor BME280
-Official repository: https://github.com/RyAndrew/esp8266_i2c_bme280
-Adapted From: https://github.com/CHERTS/esp8266-i2c_bmp180
-This driver depends on the I2C driver https://github.com/zarya/esp8266_i2c_driver/
+The driver for the temperature, pressure & humidity sensor BME280, or temperature & pressure sensor BMP280
+Port for ESP8266 RTOS SDK by Ilya Pikin of: https://github.com/RyAndrew/esp8266_i2c_bme280
 
 The MIT License (MIT)
 
 Copyright (C) 2015 Andrew Rymarczyk
+Copyright (C) 2021 Ilya Pikin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -111,14 +110,13 @@ bool i2c_master_init()
 {
 	esp_err_t err;
 	i2c_config_t conf;
-	int i2c_master_port = I2C_NUM_0;
 	conf.mode = I2C_MODE_MASTER;
 	conf.sda_io_num = bme280_config.gpio_sda;
 	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.scl_io_num = bme280_config.gpio_scl;
 	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.clk_stretch_tick = 300;
-	err = i2c_driver_install(i2c_master_port, conf.mode);
+	err = i2c_driver_install(I2C_NUM_0, conf.mode);
 	if (err != ESP_OK)
 	{
 #ifdef BME280_DEBUG
@@ -126,7 +124,7 @@ bool i2c_master_init()
 #endif
 		return false;
 	}
-	err = i2c_param_config(i2c_master_port, &conf);
+	err = i2c_param_config(I2C_NUM_0, &conf);
 	if (err != ESP_OK)
 	{
 #ifdef BME280_DEBUG
@@ -135,6 +133,11 @@ bool i2c_master_init()
 		return false;
 	}
 	return true;
+}
+
+bool i2c_master_dispose()
+{
+	i2c_driver_delete(I2C_NUM_0);
 }
 
 bool bme280_write_config_registers(void)
@@ -290,43 +293,29 @@ uint32_t bme280_calibration_hum(int32_t adc_H)
 	return (uint32_t)(v_x1 >> 12);
 }
 
-bool bme280_send_i2c_trigger_forced_read()
+bool bme280_trigger_forced_read_i2c()
 {
 	uint8_t ctrl_meas_reg = (bme280_config.osrs_t << 5) | (bme280_config.osrs_p << 2) | bme280_config.operation_mode;
 
 	if (!bme280_write_data(BME280_REG_CTRL_MEAS, &ctrl_meas_reg, 1))
 	{
 #ifdef BME280_DEBUG
-		printf("bme280_send_i2c_trigger_forced_read: error!\r\n");
+		printf("bme280_trigger_forced_read_i2c: error!\r\n");
 #endif
 		return false;
 	}
 
-	os_delay_us(10000); // wait 10ms for worst case max sensor read time
-
 	return true;
 }
 
-bool bme280_send_i2c_read_sensor_data()
+bool bme280_read_sensor_data_i2c()
 {
 	uint8_t data[8];
-
-#ifdef BME280_DEBUG
-	printf("bme280_send_i2c_read_sensor_data: operation mode = %d\r\n", bme280_config.operation_mode);
-#endif
-
-	if (bme280_config.operation_mode == BME280_MODE_FORCED)
-	{
-		if (!bme280_send_i2c_trigger_forced_read())
-		{
-			return false;
-		}
-	}
 
 	if (!bme280_read_data(0xF7, data, bme280_chip_id == BMP280_CHIP_ID ? 6 : 8))
 	{
 #ifdef BME280_DEBUG
-		printf("bme280_send_i2c_read_sensor_data: section 0xF7 error!\r\n");
+		printf("bme280_read_sensor_data_i2c: section 0xF7 error!\r\n");
 #endif
 		return false;
 	}
@@ -509,6 +498,8 @@ bool bme280_init(bme280_config_t config)
 	bme280_config = config;
 	bme280_config.address <<= 1;
 
+	bme280_dispose();
+
 	if (!i2c_master_init() ||
 		!bme280_verify_chip_id() ||
 		!bme280_write_config_registers() ||
@@ -517,6 +508,8 @@ bool bme280_init(bme280_config_t config)
 #ifdef BME280_DEBUG
 		printf("bme280_init: failed\r\n");
 #endif
+
+		bme280_dispose();
 		return false;
 	}
 
@@ -527,9 +520,19 @@ bool bme280_init(bme280_config_t config)
 	return true;
 }
 
+bool bme280_dispose()
+{
+	i2c_master_dispose();
+}
+
+bool bme280_trigger_forced_read()
+{
+	return bme280_trigger_forced_read_i2c();
+}
+
 bool bme280_read_sensor_data()
 {
-	if (!bme280_send_i2c_read_sensor_data())
+	if (!bme280_read_sensor_data_i2c())
 	{
 		return false;
 	}
