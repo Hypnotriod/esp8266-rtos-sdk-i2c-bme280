@@ -1,5 +1,5 @@
 # esp8266-rtos-sdk-i2c-bme280
-`BME280` (temperature, pressure & humiditty) and `BMP280` (temperature & pressure) sensors driver port of [RyAndrew driver](https://github.com/RyAndrew/esp8266_i2c_bme280) for ESP8266 RTOS SDK.  
+`BME280` (temperature, pressure & humiditty) and `BMP280` (temperature & pressure) sensors `I2C` driver port of [RyAndrew driver](https://github.com/RyAndrew/esp8266_i2c_bme280) for ESP8266 RTOS SDK.  
 Configured for `msys2` toolchain, with VSCode IDE on Windows: [Standard Setup of Toolchain for Windows](https://docs.espressif.com/projects/esp8266-rtos-sdk/en/latest/get-started/windows-setup.html)  
 
 ## Toolchain setup guide
