@@ -1,5 +1,5 @@
 {
-    "terminal.integrated.shell.windows": "C:/msys32/usr/bin/bash.exe",
+    "terminal.integrated.shell.windows": "${env:MSYS2}/usr/bin/bash.exe",
     "terminal.integrated.shellArgs.windows": [
         "--login",
         "-i",
