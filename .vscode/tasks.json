@@ -1,6 +1,20 @@
 {
     "tasks": [
         {
+            "label": "Python Setup",
+            "type": "shell",
+            "command": "python -m pip install -r $IDF_PATH/requirements.txt",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "clear": true
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
             "label": "Build",
             "type": "shell",
             "command": "make",

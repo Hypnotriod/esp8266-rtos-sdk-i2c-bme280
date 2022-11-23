@@ -1,9 +1,17 @@
 {
-    "terminal.integrated.shell.windows": "${env:MSYS2}/usr/bin/bash.exe",
-    "terminal.integrated.shellArgs.windows": [
-        "--login",
-        "-i",
-    ],
+    "terminal.integrated.profiles.windows": {
+        "MSYS2": {
+            "path": [
+                "${env:MSYS2}/usr/bin/bash.exe"
+            ],
+            "args": [
+                "--login",
+                "-i"
+            ],
+            "icon": "terminal-cmd",
+        }
+    },
+    "terminal.integrated.defaultProfile.windows": "MSYS2",
     "diffEditor.ignoreTrimWhitespace": false,
     "files.associations": {
         "*.h": "c",
