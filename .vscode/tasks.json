@@ -1,9 +1,9 @@
 {
     "tasks": [
         {
-            "label": "Python Setup",
+            "label": "Setup Environment",
             "type": "shell",
-            "command": "python -m pip install -r $IDF_PATH/requirements.txt",
+            "command": "cd $IDF_PATH && ./install.sh",
             "group": "build",
             "presentation": {
                 "echo": true,
